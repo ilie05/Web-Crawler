@@ -1,0 +1,7 @@
+mpi-master-slave==0.2.1
+mpi4py==3.0.1
+nltk==3.4
+pymongo==3.7.2
+singledispatch==3.4.0.3
+six==1.12.0
+tqdm==4.31.1
