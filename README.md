@@ -10,3 +10,5 @@ You must have installed Python 3.6.7.
 
 5. Search an somthing: python3 search.py
 
+***Reference to mpi_master_slave package: https://github.com/luca-s/mpi-master-slave
+
