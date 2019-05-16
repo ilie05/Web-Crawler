@@ -5,12 +5,15 @@ class DNS_Client:
 
     def __to_hex_string__(self, x):
         result = "0"
+
         if x.__class__.__name__ == "int" and x >= 0:
             result = hex(x)
+
         if x.__class__.__name__ == "int" and x < 16:
             result = "0" + result[2:]
         elif x.__class__.__name__ == "str":
             result = "".join([hex(ord(y))[2:] for y in x])
+
         return "0x" + result
 
     def __send_udp_message__(self, message, address, port):
@@ -46,7 +49,7 @@ class DNS_Client:
         DNS_QUERY = {
             "id": "0x1a2b",
             "flags": "0b0000000100000000",
-            "qdcount": 1 ,
+            "qdcount": 1,
             "ancount": 0,
             "nscount": 0,
             "arcount": 0
@@ -75,10 +78,10 @@ class DNS_Client:
         DNS_QUERY["qname" + str(j)] = self.__to_hex_string__(0)
         DNS_QUERY_FORMAT.append("uintbe:16=qtype")
         DNS_QUERY["qtype"] = 1
-        DNS_QUERY_FORMAT.append("hex=qclass")
-        DNS_QUERY["qclass"] = "0x0001"
-        data = bitstring.pack(",".join(DNS_QUERY_FORMAT), **DNS_QUERY)
+        DNS_QUERY_FORMAT.append("uintbe:16=qclass")
+        DNS_QUERY["qclass"] = 1
 
+        data = bitstring.pack(",".join(DNS_QUERY_FORMAT), **DNS_QUERY)
         return data
 
     def get_ip(self, domain):
