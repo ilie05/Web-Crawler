@@ -109,7 +109,7 @@ class DNS_Client:
         dns_cache_coll = db['dns_cache']
         domain_record = dns_cache_coll.find_one({'domain': domain})
 
-        # diff of 2 'datime.utfnow()' objects returns a 'timedelta' objec
+        # diff of 2 'datime.utfnow()' objects returns a 'timedelta' object
         if not domain_record:
             return None
         elif (datetime.datetime.utcnow() - domain_record['insert_time']).seconds <= domain_record['ttl']:
