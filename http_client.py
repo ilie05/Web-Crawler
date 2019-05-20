@@ -7,10 +7,6 @@ import urllib.robotparser
 working_folder = 'scraping-content/'
 USER_AGENT = 'RIWEB_CRAWLER'
 
-#create robots folder
-if not os.path.exists('robots'):
-    os.makedirs('robots')
-
 url_queue = ['riweb.tibeica.com/crawl', 'http://fanacmilan.com/', 'http://riweb.tibeica.com/crawl/inst-makeinstall.html',
              'riweb.tibeica.com/crawl/inst-prerequisites.html', 'https://www.w3schools.com/php/php_syntax.asp',
              'www.w3schools.com']
@@ -54,7 +50,7 @@ def create_url_directory_structure(domain):
     return file_path
 
 
-def write_data_into_file(file_path, data):
+def write_data_into_file(file_path, data, domain, local_path):
     res = data.split('\r\n')
     header = res[:-1]
     html_content = res[-1]
@@ -66,6 +62,9 @@ def write_data_into_file(file_path, data):
     # If the file does not exist, creates a new file for writing.
     with open(file_path, 'w+') as file:
         file.write(html_content)
+
+    # extract links
+    get_links(file_path, domain, local_path)
 
 
 def get_robots(domain, ip):
@@ -139,17 +138,42 @@ def check_url_in_robots(domain, local_path):
 def check_move_permanently(data):
     res = data.split('\r\n')
     header = res[:-1]
-    print(header)
     if '301' in header[0]:
         for line in header:
             if 'Location:' in line:
                 return ':'.join(line.split(':')[1:])
 
 
+def get_links(html_file, domain, local_path):
+    with open(html_file, 'r') as file:
+        soup = BeautifulSoup(file, features="html.parser")
+
+    meta_robots = soup.find("meta", attrs={"name": "robots"})
+    # if robots meta exists, check if the following is allowed
+    if meta_robots:
+        meta_robots_content = meta_robots['content']
+        if 'nofollow' in meta_robots_content.split(' '):
+            print('got into return')
+            return
+
+    for a in soup.find_all('a', href=True):
+        href = a['href']
+        if 'https' in href or 'http' in href:
+            url_queue.append(href)
+        else:
+            if href == '':
+                continue
+            if href[0] == '/':
+                new_url = 'http://' + domain + href
+            else:
+                new_url = 'http://' + domain + '/' + local_path + '/' + href
+                url_queue.append(new_url)
+
 
 while limit > 0 and len(url_queue) > 0:
     # pop the url from queue
     current_url = url_queue[0]
+    print('current url: {}'.format(current_url))
     url_queue.pop(0)
 
     # get domain and local_path
@@ -159,6 +183,12 @@ while limit > 0 and len(url_queue) > 0:
     else:
         domain = current_url.split('/')[0]
         local_path = '/'.join(current_url.split('/')[1:])
+
+    # remove '/' from local_path
+    if local_path != '' and local_path[-1] == '/':
+        local_path = local_path[:-1]
+    if local_path != '' and local_path[0] == '/':
+        local_path = local_path[1:]
 
     # check local dns for
     TCP_IP = DNS_CLIENT.check_cache(domain)
@@ -177,11 +207,13 @@ while limit > 0 and len(url_queue) > 0:
 
     # check url in robots
     rp = urllib.robotparser.RobotFileParser()
-    rp.set_url('http://' + domain + '/robots.txt')
-    rp.read()
-    if not rp.can_fetch(USER_AGENT, current_url):
+    try:
+        rp.set_url('http://' + domain + '/robots.txt')
+        rp.read()
+        if not rp.can_fetch(USER_AGENT, current_url):
+            continue
+    except:
         continue
-
 
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -210,6 +242,6 @@ while limit > 0 and len(url_queue) > 0:
         continue
 
     file_path = create_url_directory_structure(domain)
-    write_data_into_file(file_path, data)
+    write_data_into_file(file_path, data, domain, local_path)
 
     limit -= 1
