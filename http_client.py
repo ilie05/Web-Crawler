@@ -59,6 +59,8 @@ def write_data_into_file(file_path, data):
     header = res[:-1]
     html_content = res[-1]
 
+    if '200' not in header[0]:
+        return
     # 'w+'
     # Opens a file for writing only in binary format. Overwrites the file if the file exists.
     # If the file does not exist, creates a new file for writing.
@@ -134,6 +136,16 @@ def check_url_in_robots(domain, local_path):
     return True
 
 
+def check_move_permanently(data):
+    res = data.split('\r\n')
+    header = res[:-1]
+    print(header)
+    if '301' in header[0]:
+        for line in header:
+            if 'Location:' in line:
+                return ':'.join(line.split(':')[1:])
+
+
 
 while limit > 0 and len(url_queue) > 0:
     # pop the url from queue
@@ -190,6 +202,12 @@ while limit > 0 and len(url_queue) > 0:
 
     data = data.decode()
     s.close()
+
+    # check for 301 Moved Permanently
+    new_location = check_move_permanently(data)
+    if new_location and new_location != current_url:
+        url_queue.insert(0, new_location)
+        continue
 
     file_path = create_url_directory_structure(domain)
     write_data_into_file(file_path, data)
