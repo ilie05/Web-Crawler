@@ -3,6 +3,12 @@ from bs4 import BeautifulSoup
 from dns_client import DNS_CLIENT
 import os
 import urllib.robotparser
+from pymongo import MongoClient
+
+client = MongoClient()
+db = client['riw_db']
+URL_COLL = db['urls']
+URL_COLL.delete_many({})
 
 working_folder = 'scraping-content/'
 USER_AGENT = 'RIWEB_CRAWLER'
@@ -153,12 +159,11 @@ def get_links(html_file, domain, local_path):
     if meta_robots:
         meta_robots_content = meta_robots['content']
         if 'nofollow' in meta_robots_content.split(' '):
-            print('got into return')
             return
 
     for a in soup.find_all('a', href=True):
         href = a['href']
-        if 'https' in href or 'http' in href:
+        if 'https' in href or 'http' in href and href not in url_queue:
             url_queue.append(href)
         else:
             if href == '':
@@ -167,14 +172,20 @@ def get_links(html_file, domain, local_path):
                 new_url = 'http://' + domain + href
             else:
                 new_url = 'http://' + domain + '/' + local_path + '/' + href
+            if new_url not in url_queue:
                 url_queue.append(new_url)
 
 
 while limit > 0 and len(url_queue) > 0:
     # pop the url from queue
     current_url = url_queue[0]
-    print('current url: {}'.format(current_url))
     url_queue.pop(0)
+
+    if URL_COLL.find_one({'url': current_url}):
+        print("URL-ul is already visited: {}".format(current_url))
+        continue
+
+    print('current url: {}'.format(current_url))
 
     # get domain and local_path
     if '//' in current_url:
@@ -215,7 +226,6 @@ while limit > 0 and len(url_queue) > 0:
     except:
         continue
 
-
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((TCP_IP, TCP_PORT))
 
@@ -244,4 +254,7 @@ while limit > 0 and len(url_queue) > 0:
     file_path = create_url_directory_structure(domain)
     write_data_into_file(file_path, data, domain, local_path)
 
+    URL_COLL.insert_one({'url': current_url})
+
     limit -= 1
+    print('limit: {}'.format(limit))
