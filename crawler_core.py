@@ -10,7 +10,12 @@ db = client['riw_db']
 URL_COLL = db['urls']
 URL_COLL.delete_many({})
 
-working_folder = 'scraping-content/'
+working_folder = 'scraping-content'
+# create working folder
+if os.path.exists(working_folder):
+    os.mkdir(working_folder)
+working_folder += '/'
+
 USER_AGENT = 'RIWEB_CRAWLER'
 
 url_queue = ['riweb.tibeica.com/crawl', 'http://fanacmilan.com/', 'http://riweb.tibeica.com/crawl/inst-makeinstall.html',
@@ -73,74 +78,6 @@ def write_data_into_file(file_path, data, domain, local_path):
     get_links(file_path, domain, local_path)
 
 
-def get_robots(domain, ip):
-    msg_robots = 'GET /{0} HTTP/1.0\nHost: {1}\nUser-Agent: {2}\n\n'.format('robots.txt', domain, USER_AGENT)
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((ip, 80))
-    s.send(msg_robots.encode())
-    robots = b''
-    while True:
-        try:
-            buf = s.recv(1)
-            robots += buf
-            if not buf:
-                break
-        except:
-            pass
-    robots = robots.decode().split('\r\n')
-
-    if len(robots) < 1:
-        return
-    file_path = 'robots/{}.robots.txt'.format(domain)
-    with open(file_path, 'w+') as file:
-        for line in robots:
-            if 'User-agent' in line or 'Disallow' in line:
-                file.write(line)
-    # delete file if nothing is written
-    if os.path.getsize(file_path) == 0:
-        os.remove(file_path)
-
-
-def check_url_in_robots(domain, local_path):
-    file_path = 'robots/{}.robots.txt'.format(domain)
-    if not os.path.exists(file_path):
-        return
-    local_path = '/'.join(filter(None, local_path.split('/')))
-    with open(file_path, 'r') as file:
-        for line in file:
-            if line.split(':')[0] == 'User-agent' and line.split(':')[1].strip() == USER_AGENT:
-                while True:
-                    ln = file.readline()
-                    if ln == '':
-                        break
-                    if ln == '\n':
-                        continue
-                    if ln.split(':')[0] == 'Disallow' and ln.split(':')[1].strip() == '':      # 'Disallow: '
-                        return True
-                    if ln.split(':')[0] == 'Disallow' and ln.split(':')[1].strip() == '/':     # 'Disallow: /'
-                        return False
-                    if ln.split(':')[0] == 'User-agent':
-                        line = ln
-                        break
-            print(line)
-            if line.split(':')[0] == 'User-agent' and line.split(':')[1].strip() == '*':
-                while True:
-                    ln = file.readline()
-                    if ln == '':
-                        break
-                    if ln == '\n':
-                        continue
-                    # ln = '/'.join(filter(None, ln.split(':')[1].split('/')))
-                    ln = ln.split(':')[1].split('/')
-                    print(ln)
-                    if len(ln.split(':')) > 1 and ln.split(':')[1].strip() == file_path:
-                        return False
-                    if ln.split(':')[0] == 'User-agent':
-                        break
-            return True
-    return True
-
-
 def check_move_permanently(data):
     res = data.split('\r\n')
     header = res[:-1]
@@ -176,6 +113,33 @@ def get_links(html_file, domain, local_path):
                 url_queue.append(new_url)
 
 
+def http_client(domain, local_path):
+    # check local dns for
+    TCP_IP = DNS_CLIENT.check_cache(domain)
+    # if dns cache expired or does not exist
+    if not TCP_IP:
+        TCP_IP = DNS_CLIENT.get_ip(domain)
+    TCP_PORT = 80
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((TCP_IP, TCP_PORT))
+
+    MESSAGE = 'GET /{0} HTTP/1.0\nHost: {1}\nUser-Agent: {2}\n\n'.format(local_path, domain, USER_AGENT)
+    s.send(MESSAGE.encode())
+
+    data = b''
+    while True:
+        try:
+            buf = s.recv(1)
+            data += buf
+            if not buf:
+                break
+        except:
+            pass
+
+    s.close()
+    return data.decode()
+
+
 while limit > 0 and len(url_queue) > 0:
     # pop the url from queue
     current_url = url_queue[0]
@@ -201,21 +165,6 @@ while limit > 0 and len(url_queue) > 0:
     if local_path != '' and local_path[0] == '/':
         local_path = local_path[1:]
 
-    # check local dns for
-    TCP_IP = DNS_CLIENT.check_cache(domain)
-    # if dns cache expired or does not exist
-    if not TCP_IP:
-        TCP_IP = DNS_CLIENT.get_ip(domain)
-    TCP_PORT = 80
-
-
-    # if not os.path.isfile('robots/{}.robots.txt'.format(domain)):
-    #     # request 'robots.txt'
-    #     get_robots(domain, TCP_IP)
-    #
-    # # check url in robots
-    # check_url_in_robots(domain, local_path)
-
     # check url in robots
     rp = urllib.robotparser.RobotFileParser()
     try:
@@ -226,24 +175,7 @@ while limit > 0 and len(url_queue) > 0:
     except:
         continue
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((TCP_IP, TCP_PORT))
-
-    MESSAGE = 'GET /{0} HTTP/1.0\nHost: {1}\nUser-Agent: {2}\n\n'.format(local_path, domain, USER_AGENT)
-    s.send(MESSAGE.encode())
-
-    data = b''
-    while True:
-        try:
-            buf = s.recv(1)
-            data += buf
-            if not buf:
-                break
-        except:
-            pass
-
-    data = data.decode()
-    s.close()
+    data = http_client(domain, local_path)
 
     # check for 301 Moved Permanently
     new_location = check_move_permanently(data)
