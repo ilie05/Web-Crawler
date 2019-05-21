@@ -25,7 +25,7 @@ url_queue = ['riweb.tibeica.com/crawl', 'http://fanacmilan.com/', 'http://riweb.
 limit = 100
 
 
-def create_url_directory_structure(domain):
+def create_url_directory_structure(domain, local_path):
     # check if exists a directory for current domain
     if not os.path.exists(working_folder + domain):
         os.makedirs(working_folder + domain)
@@ -142,8 +142,8 @@ def http_client(domain, local_path):
 
 while limit > 0 and len(url_queue) > 0:
     # pop the url from queue
-    current_url = url_queue[0]
-    url_queue.pop(0)
+    current_url = url_queue.pop(0)
+
 
     if URL_COLL.find_one({'url': current_url}):
         print("URL-ul is already visited: {}".format(current_url))
@@ -183,7 +183,7 @@ while limit > 0 and len(url_queue) > 0:
         url_queue.insert(0, new_location)
         continue
 
-    file_path = create_url_directory_structure(domain)
+    file_path = create_url_directory_structure(domain, local_path)
     write_data_into_file(file_path, data, domain, local_path)
 
     URL_COLL.insert_one({'url': current_url})
