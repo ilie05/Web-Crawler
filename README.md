@@ -12,5 +12,8 @@ You must have installed Python 3.6.7.
 
 5. Search an somthing: python3 search.py
 
+
+
+6. Run crawler from terminal: mpiexec -n 4 python3 parallel_crawler_core.py
 ***Reference to mpi_master_slave package: https://github.com/luca-s/mpi-master-slave
 
