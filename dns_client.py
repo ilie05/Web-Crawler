@@ -3,8 +3,7 @@ import bitstring
 from pymongo import MongoClient
 import datetime
 
-client = MongoClient()
-db = client['riw_db']
+DNS_CACHE = []
 
 class DNS_Client:
     def __to_hex_string__(self, x):
@@ -100,14 +99,16 @@ class DNS_Client:
 
         # add to cache new domain
         ttl = response[-80:-48].uintbe
-        dns_cache_coll = db['dns_cache']
-        dns_cache_coll.insert_one({'domain': domain, 'ip_address': ip_address, 'ttl': ttl, 'insert_time': datetime.datetime.utcnow()})
+        DNS_CACHE.append({'domain': domain, 'ip_address': ip_address, 'ttl': ttl, 'insert_time': datetime.datetime.utcnow()})
 
         return ip_address
 
     def check_cache(self, domain):
-        dns_cache_coll = db['dns_cache']
-        domain_record = dns_cache_coll.find_one({'domain': domain})
+        domain_record = None
+        for i in range(len(DNS_CACHE)):
+            if domain == DNS_CACHE[i]['domain']:
+                domain_record = DNS_CACHE[i]
+                break
 
         # diff of 2 'datime.utfnow()' objects returns a 'timedelta' object
         if not domain_record:
@@ -115,7 +116,7 @@ class DNS_Client:
         elif (datetime.datetime.utcnow() - domain_record['insert_time']).seconds <= domain_record['ttl']:
             return domain_record['ip_address']
         else:
-            dns_cache_coll.remove({'_id': domain_record['_id']})
+            DNS_CACHE.pop(i)
             return None
 
 
