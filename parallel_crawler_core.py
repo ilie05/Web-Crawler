@@ -31,7 +31,7 @@ class MyApp(object):
         # when creating the Master we tell it what slaves it can handle
         self.master = Master(slaves)
 
-        self.url_queue = ['http://riweb.tibeica.com/crawl/'] #  'http://riweb.tibeica.com/crawl/'
+        self.url_queue = ['http://riweb.tibeica.com/crawl/'] # 'http://fanacmilan.com/' 'http://riweb.tibeica.com/crawl/' 'http://www.greenworldmoldova.com/'
         self.visited = {}
 
         self.UTILS = Utils()
@@ -181,7 +181,7 @@ class MySlave(Slave):
         s.settimeout(2.0)
         s.connect((TCP_IP, TCP_PORT))
 
-        if len(local_path) > 1:
+        if len(local_path) >= 1:
             local_path = local_path[1:]
 
         MESSAGE = 'GET /{0} HTTP/1.1\nHost: {1}\nConnection: close\nUser-Agent: {2}\n\n'.format(local_path, domain, self.UTILS.USER_AGENT)
@@ -212,7 +212,6 @@ class MySlave(Slave):
         cwd = self.UTILS.working_folder
 
         url = domain + local_path
-
         fullname = os.path.join(cwd, url)
         path, basename = os.path.split(fullname)
         if not os.path.exists(path):
@@ -226,9 +225,13 @@ class MySlave(Slave):
     def write_data_into_file(self, file_path, data, url):
         res = data.split('\r\n')
 
-        header = res[:-1]
-        html_content = res[-1]
+        for i in range(len(res)):
+            if res[i] == '':
+                header = ''.join(res[:i])
+                html_content = ''.join(res[i:])
+                break
 
+        header = header.split('\r\n')
         code = int(header[0].split(' ')[1])
 
         if code != 200:
