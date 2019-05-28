@@ -109,7 +109,6 @@ class DNS_Client:
             if domain == DNS_CACHE[i]['domain']:
                 domain_record = DNS_CACHE[i]
                 break
-
         # diff of 2 'datime.utfnow()' objects returns a 'timedelta' object
         if not domain_record:
             return None

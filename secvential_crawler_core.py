@@ -4,6 +4,7 @@ from dns_client import DNS_CLIENT
 import os
 import urllib.robotparser
 from pymongo import MongoClient
+from urllib.parse import urlparse, urljoin
 
 client = MongoClient()
 db = client['riw_db']
@@ -12,13 +13,13 @@ URL_COLL.delete_many({})
 
 working_folder = 'scraping-content'
 # create working folder
-if os.path.exists(working_folder):
+if not os.path.exists(working_folder):
     os.mkdir(working_folder)
 working_folder += '/'
 
 USER_AGENT = 'RIWEB_CRAWLER'
 
-url_queue = ['riweb.tibeica.com/crawl', 'http://fanacmilan.com/', 'http://riweb.tibeica.com/crawl/inst-makeinstall.html',
+url_queue = ['http://fanacmilan.com/', 'riweb.tibeica.com/crawl', 'http://riweb.tibeica.com/crawl/inst-makeinstall.html',
              'riweb.tibeica.com/crawl/inst-prerequisites.html', 'https://www.w3schools.com/php/php_syntax.asp',
              'www.w3schools.com']
 
@@ -144,38 +145,38 @@ while limit > 0 and len(url_queue) > 0:
     # pop the url from queue
     current_url = url_queue.pop(0)
 
-
     if URL_COLL.find_one({'url': current_url}):
         print("URL-ul is already visited: {}".format(current_url))
         continue
-
     print('current url: {}'.format(current_url))
+    current_url = urlparse(current_url)
 
     # get domain and local_path
-    if '//' in current_url:
-        domain = current_url.split('//')[1].split('/')[0]
-        local_path = '/'.join(current_url.split('//')[1].split('/')[1:])
-    else:
-        domain = current_url.split('/')[0]
-        local_path = '/'.join(current_url.split('/')[1:])
+    # if '//' in current_url:
+    #     domain = current_url.split('//')[1].split('/')[0]
+    #     local_path = '/'.join(current_url.split('//')[1].split('/')[1:])
+    # else:
+    #     domain = current_url.split('/')[0]
+    #     local_path = '/'.join(current_url.split('/')[1:])
+
 
     # remove '/' from local_path
-    if local_path != '' and local_path[-1] == '/':
-        local_path = local_path[:-1]
-    if local_path != '' and local_path[0] == '/':
-        local_path = local_path[1:]
+    # if local_path != '' and local_path[-1] == '/':
+    #     local_path = local_path[:-1]
+    # if local_path != '' and local_path[0] == '/':
+    #     local_path = local_path[1:]
 
     # check url in robots
     rp = urllib.robotparser.RobotFileParser()
     try:
-        rp.set_url('http://' + domain + '/robots.txt')
+        rp.set_url(urljoin(current_url.scheme + current_url.netloc, '/robots.txt'))
         rp.read()
         if not rp.can_fetch(USER_AGENT, current_url):
             continue
     except:
         continue
 
-    data = http_client(domain, local_path)
+    data = http_client(current_url)
 
     # check for 301 Moved Permanently
     new_location = check_move_permanently(data)
